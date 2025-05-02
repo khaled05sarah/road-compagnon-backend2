@@ -1,0 +1,15 @@
+# Ne pas envoyer le fichier d'environnement
+.env
+
+# Ne pas envoyer le dossier des dépendances
+node_modules/
+
+# Fichiers temporaires
+*.log
+
+# Cache de npm
+.npm
+
+# OS spécifiques
+.DS_Store
+Thumbs.db
