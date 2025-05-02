@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Question = require('../../models/test/question');
-const Attempt = require('../../models/test/attempt');
+const Attempt = require('../../models/test/Attempt');
 router.get('/random', async (req, res) => {
     try {
         const questions = await Question.aggregate([{ $sample: { size: 40 } }]);
