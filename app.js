@@ -453,7 +453,7 @@ app.use((req, res, next) => {
 });
 
 // Connexion à MongoDB
-const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/monprojetdb';
+const mongoURI = process.env.MONGO_URI || 'MONGO_URI=mongodb+srv://nskhaled:cppw1N3SokqYGa4b@cluster0.zi49xlx.mongodb.net/monprojetdb?retryWrites=true&w=majority&appName=Cluster0';
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log("✅ Connexion à MongoDB réussie !"))
     .catch(err => console.error("❌ Erreur de connexion à MongoDB :", err));
