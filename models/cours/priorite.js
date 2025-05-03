@@ -9,5 +9,6 @@ const prioriteSchema = new mongoose.Schema({
     images: [{ type: String }] 
 }, { timestamps: true });
 
-const Priorite = mongoose.model('Priorite', prioriteSchema);
+const Priorite = mongoose.model('Priorite', prioriteSchema, 'priorites'); // ou le vrai nom que tu vois dans Atlas
+
 module.exports = Priorite;
