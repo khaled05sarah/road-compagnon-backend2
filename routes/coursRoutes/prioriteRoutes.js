@@ -20,6 +20,7 @@ router.get('/explication_generale', async(req, res) => {
 router.get('/paragraphes', async(req, res) => {
     try {
         const priorite = await Priorite.findOne();
+        console.log("Document trouvé:", priorite);
 
         if (!priorite || !priorite.paragraphes) {
             return res.status(404).json({ message: 'Aucune donnée trouvée' });
