@@ -451,26 +451,16 @@ app.use((req, res, next) => {
     console.log(`📩 [${req.method}] ${req.url} - Body:`, req.body);
     next();
 });
-const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/monprojetdb';
+
 
 // Affiche l'URI utilisée pour vérifier si c'est bien celle d'Atlas
-console.log("🔍 URI MongoDB utilisée :", mongoURI);
 
-mongoose.connect(mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log("✅ Connexion à MongoDB réussie !");
-  if (mongoURI.includes('mongodb+srv')) {
-    console.log("🌍 Connecté à MongoDB Atlas");
-  } else {
-    console.log("💻 Connecté à MongoDB local");
-  }
-})
-.catch((err) => {
-  console.error("❌ Échec de la connexion à MongoDB :", err.message);
-});
+
+const mongoURI = process.env.MONGO_URI || "mongodb+srv://nskhaled:cppw1N3SokqYGa4b@cluster0.zi49xlx.mongodb.net/monprojetdb?retryWrites=true&w=majority"; 
+console.log("🔍 URI MongoDB utilisée :", mongoURI);
+mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('✅ Connexion réussie à MongoDB Atlas !'))
+  .catch((err) => console.error('❌ Erreur de connexion à MongoDB :', err));
 
 // Route de test
 app.get('/', (req, res) => {
