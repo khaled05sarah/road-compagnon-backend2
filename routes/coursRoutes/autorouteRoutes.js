@@ -19,20 +19,31 @@ router.get('/explication_generale', async(req, res) => {
 });
 
 // Route pour récupérer tous les paragraphes
-router.get('/paragraphes', async(req, res) => {
+router.get('/paragraphes', async (req, res) => {
     try {
-        const autoroute = await Autoroute.findOne();
+        console.log("📥 Requête reçue sur /paragraphes");
 
-        if (!autoroute || !autoroute.paragraphes) {
-            return res.status(404).json({ message: 'Aucune donnée trouvée' });
+        const autoroute = await Autoroute.findOne();
+        console.log("🔍 Résultat de Autoroute.findOne():", autoroute);
+
+        if (!autoroute) {
+            console.warn("⚠️ Aucun document trouvé dans la collection Autoroute.");
+            return res.status(404).json({ message: 'Aucune donnée trouvée (document manquant)' });
         }
 
+        if (!autoroute.paragraphes || autoroute.paragraphes.length === 0) {
+            console.warn("⚠️ Le champ 'paragraphes' est vide ou manquant :", autoroute.paragraphes);
+            return res.status(404).json({ message: 'Aucune donnée trouvée (paragraphes manquants)' });
+        }
+
+        console.log("✅ Paragraphes trouvés :", autoroute.paragraphes);
         res.json(autoroute.paragraphes);
     } catch (error) {
         console.error("❌ Erreur serveur :", error);
         res.status(500).json({ message: 'Erreur serveur', error });
     }
 });
+
 // ✅ Récupérer un paragraphe par son index sans spécifier l'ID de l'autoroute
 router.get('/paragraphes/:index', async(req, res) => {
     try {
