@@ -217,126 +217,144 @@ const updateProviderModel = async (providerId, updateData) => {
   
 
         // ═══════════════════
-        // 4) Nouvelle demande
+// 4) Nouvelle demande
+// ═══════════════════
+if (type === 'new_request') {
+  const { serviceType, lat, lng } = data;
+  const { pieceName, carModel } = data;
+
+  if (!serviceType || !userId) {
+    console.log("❌ Requête invalide : serviceType ou userId manquant.");
+    return;
+  }
+
+  const ServiceModel = getServiceModel(serviceType);
+  if (!ServiceModel) {
+    console.log(`❌ Modèle introuvable pour le service : ${serviceType}`);
+    return;
+  }
+
+  const userDetails = await User.findById(userId).select('firstname lastname phone').lean();
+  if (!userDetails) {
+    console.log(`❌ Utilisateur introuvable avec ID : ${userId}`);
+    return;
+  }
+  userDetails.name = `${userDetails.firstname} ${userDetails.lastname}`;
+
+  const providers = await ServiceModel.find({
+    online: true,
+    currentLocation: { $exists: true }
+  }).limit(20);
+
+  if (!providers.length) {
+    console.log(`⚠️ Aucun prestataire en ligne pour le service : ${serviceType}`);
+    if (clients.has(`user_${userId}`)) {
+      clients.get(`user_${userId}`).send(JSON.stringify({ type: 'no_providers_available' }));
+    } else {
+      console.log(`⚠️ Client WebSocket non connecté : user_${userId}`);
+    }
+    return;
+  }
+
+  const sorted = providers
+    .map(p => ({
+      p,
+      dist: geolib.getDistance(
+        { latitude: lat, longitude: lng },
+        { latitude: p.currentLocation.lat, longitude: p.currentLocation.lng }
+      )
+    }))
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 20);
+
+  const reqData = {
+    userId,
+    userDetails,
+    serviceType,
+    location: { lat, lng },
+    status: "en attente",
+    statusHistory: [{ status: "en attente", changedAt: new Date() }],
+    createdAt: new Date()
+  };
+
+  if (serviceType === 'بائع قطع الغيار') {
+    reqData.pieceName = pieceName;
+    reqData.carModel = carModel;
+  }
+
+  let savedRequest;
+try {
+  const newRequest = new Request(reqData);
+  savedRequest = await newRequest.save();
+  console.log("✅ Demande enregistrée:", savedRequest._id);
+} catch (err) {
+  console.error("❌ Erreur lors de l'enregistrement de la demande :", err);
+  if (clients.has(`user_${userId}`)) {
+    clients.get(`user_${userId}`).send(JSON.stringify({
+      type: 'request_creation_failed',
+      message: 'Une erreur est survenue lors de la création de la demande.'
+    }));
+  }}
+  sorted.forEach(({ p }) => {
+    const key = `provider_${p.userId}`;
+    if (clients.has(key)) {
+      const requestPayload = {
+        type: 'new_request',
+        requestId: savedRequest._id,
+        user: userDetails,
+        serviceType,
+        location: { lat, lng },
+        ...(serviceType === 'بائع قطع الغيار' ? { pieceName, carModel } : {}),
+        createdAt: savedRequest.createdAt
+      };
+
+      console.log(`📤 Envoi à ${key} =>`, JSON.stringify(requestPayload, null, 2));
+      clients.get(key).send(JSON.stringify(requestPayload));
+    } else {
+      console.log(`🚫 WebSocket non trouvé pour ${key}, requête non envoyée.`);
+    }
+  });
+
+  return;
+}
+
+
         // ═══════════════════
-        if (type === 'new_request') {
-          console.log('=== DÉBUT TRAITEMENT new_request ===');
-          console.log('Données reçues:', JSON.stringify(data, null, 2));
-        
-          const { serviceType, lat, lng } = data;
-          // pour Vendor on attend aussi pieceName et carModel
-          const { pieceName, carModel } = data;
-        
-          if (!serviceType || !userId) {
-            console.log('❌ Paramètres manquants - serviceType ou userId absent');
-            return;
-          }
-        
-          console.log('ServiceType:', serviceType);
-          console.log('UserID:', userId);
-          console.log('Coordonnées:', { lat, lng });
-        
-          const ServiceModel = getServiceModel(serviceType);
-          if (!ServiceModel) {
-            console.log('❌ Model de service non trouvé pour:', serviceType);
-            return;
-          }
-        
-          // détails utilisateur
-          console.log('🔍 Recherche utilisateur:', userId);
-          const userDetails = await User.findById(userId).select('firstname lastname phone').lean();
-          if (!userDetails) {
-            console.log('❌ Utilisateur non trouvé');
-            return;
-          }
-          userDetails.name = `${userDetails.firstname} ${userDetails.lastname}`;
-          console.log('Utilisateur trouvé:', userDetails);
-        
-          // récupère jusqu'à 20 prestataires en ligne
-          console.log('🔍 Recherche prestataires en ligne pour:', serviceType);
-          const providers = await ServiceModel.find({
-            online: true,
-            currentLocation: { $exists: true }
-          }).limit(20);
-        
-          console.log('Prestataires trouvés:', providers.length);
-          if (!providers.length) {
-            console.log('ℹ️ Aucun prestataire disponible');
-            if (clients.has(`user_${userId}`)) {
-              clients.get(`user_${userId}`).send(JSON.stringify({ type: 'no_providers_available' }));
-            }
-            return;
-          }
-        
-          // calcule et trie par distance
-          console.log('📏 Calcul des distances...');
-          const sorted = providers
-            .map(p => ({
-              p,
-              dist: geolib.getDistance(
-                { latitude: lat, longitude: lng },
-                { latitude: p.currentLocation.lat, longitude: p.currentLocation.lng }
-              )
-            }))
-            .sort((a, b) => a.dist - b.dist)
-            .slice(0, 20); // top 20
-        
-          console.log('Prestataires triés:', sorted.length);
-        
-          // crée la demande sans assignedProvider
-          const reqData = {
-            userId,
-            userDetails,
-            serviceType,
-            location: { lat, lng },
-            status: "en attente",
-            statusHistory: [{ status: "en attente", changedAt: new Date() }],
-            createdAt: new Date()
-          };
-        
-          // champs supplémentaires pour Vendor
-          if (serviceType === 'بائع قطع الغيار') {
-            reqData.pieceName = pieceName;
-            reqData.carModel = carModel;
-            console.log('🚗 Données Vendor:', { pieceName, carModel });
-          }
-        
-          console.log('📝 Données de la requête:', JSON.stringify(reqData, null, 2));
-        
-          try {
-            console.log('💾 Tentative d\'enregistrement de la demande...');
-            const newRequest = new Request(reqData);
-            const savedRequest = await newRequest.save();
-            console.log('✅ Demande enregistrée avec ID:', savedRequest._id);
-            console.log('Détails:', JSON.stringify(savedRequest, null, 2));
-        
-            // envoi à chacun des 20 prestataires triés
-            console.log('✉️ Envoi aux prestataires...');
-            sorted.forEach(({ p }) => {
-              const key = `provider_${p.userId}`;
-              if (clients.has(key)) {
-                const requestPayload = {
-                  type: 'new_request',
-                  requestId: savedRequest._id,
-                  user: userDetails,
-                  serviceType,
-                  location: { lat, lng },
-                  ...(serviceType === 'بائع قطع الغيار' ? { pieceName, carModel } : {}),
-                  createdAt: savedRequest.createdAt
-                };
-        
-                console.log(`📤 Envoi à ${key} =>`, JSON.stringify(requestPayload, null, 2));
-                clients.get(key).send(JSON.stringify(requestPayload));
-              } else {
-                console.log(`ℹ️ Prestataire ${key} non connecté`);
+        // 5) Acceptation (seul le premier)
+        // ═══════════════════
+        if (type === 'accept_request') {
+          const { requestId } = data;
+          // ne traite que la 1re acceptation
+          const updatedRequest = await Request.findOneAndUpdate(
+            { _id: requestId, status: "en attente", assignedProvider: null },
+            {
+              assignedProvider: providerId,
+              status: "acceptée",
+              acceptedAt: new Date(),
+              $push: { statusHistory: { status: "acceptée", changedAt: new Date() } }
+            },
+            { new: true }
+          );
+          if (!updatedRequest) return;
+
+          // prép. data
+          const providerDetails = await User.findById(providerId).select('firstname lastname phone').lean();
+          const ServiceModel = getServiceModel(updatedRequest.serviceType);
+          const providerDoc = await ServiceModel.findOne({ userId: providerId }).lean();
+
+          // notifie l'utilisateur
+          const userKey = `user_${updatedRequest.userId}`;
+          if (clients.has(userKey)) {
+            clients.get(userKey).send(JSON.stringify({
+              type: 'request_accepted',
+              requestId: updatedRequest._id,
+              provider: {
+                name: `${providerDetails.firstname} ${providerDetails.lastname}`,
+                phone: providerDetails.phone,
+                location: providerDoc.currentLocation
               }
-            });
-          } catch (error) {
-            console.error('❌ Erreur lors de l\'enregistrement:', error);
-            console.error('Stack:', error.stack);
+            }));
           }
-        
-          console.log('=== FIN TRAITEMENT new_request ===');
           return;
         }
 
