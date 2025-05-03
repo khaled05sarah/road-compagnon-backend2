@@ -216,12 +216,11 @@ const updateProviderModel = async (providerId, updateData) => {
   }
   
 
-        // ═══════════════════
+ // ═══════════════════
 // 4) Nouvelle demande
 // ═══════════════════
 if (type === 'new_request') {
-  const { serviceType, lat, lng } = data;
-  const { pieceName, carModel } = data;
+  const { serviceType, lat, lng, pieceName, carModel } = data;
 
   if (!serviceType || !userId) {
     console.log("❌ Requête invalide : serviceType ou userId manquant.");
@@ -241,32 +240,7 @@ if (type === 'new_request') {
   }
   userDetails.name = `${userDetails.firstname} ${userDetails.lastname}`;
 
-  const providers = await ServiceModel.find({
-    online: true,
-    currentLocation: { $exists: true }
-  }).limit(20);
-
-  if (!providers.length) {
-    console.log(`⚠️ Aucun prestataire en ligne pour le service : ${serviceType}`);
-    if (clients.has(`user_${userId}`)) {
-      clients.get(`user_${userId}`).send(JSON.stringify({ type: 'no_providers_available' }));
-    } else {
-      console.log(`⚠️ Client WebSocket non connecté : user_${userId}`);
-    }
-    return;
-  }
-
-  const sorted = providers
-    .map(p => ({
-      p,
-      dist: geolib.getDistance(
-        { latitude: lat, longitude: lng },
-        { latitude: p.currentLocation.lat, longitude: p.currentLocation.lng }
-      )
-    }))
-    .sort((a, b) => a.dist - b.dist)
-    .slice(0, 20);
-
+  // Prépare les données à enregistrer
   const reqData = {
     userId,
     userDetails,
@@ -282,19 +256,55 @@ if (type === 'new_request') {
     reqData.carModel = carModel;
   }
 
+  // Sauvegarde la requête dans tous les cas
   let savedRequest;
-try {
-  const newRequest = new Request(reqData);
-  savedRequest = await newRequest.save();
-  console.log("✅ Demande enregistrée:", savedRequest._id);
-} catch (err) {
-  console.error("❌ Erreur lors de l'enregistrement de la demande :", err);
-  if (clients.has(`user_${userId}`)) {
-    clients.get(`user_${userId}`).send(JSON.stringify({
-      type: 'request_creation_failed',
-      message: 'Une erreur est survenue lors de la création de la demande.'
-    }));
-  }}
+  try {
+    const newRequest = new Request(reqData);
+    savedRequest = await newRequest.save();
+    console.log("✅ Demande enregistrée:", savedRequest._id);
+  } catch (err) {
+    console.error("❌ Erreur lors de l'enregistrement de la demande :", err);
+    if (clients.has(`user_${userId}`)) {
+      clients.get(`user_${userId}`).send(JSON.stringify({
+        type: 'request_creation_failed',
+        message: 'Une erreur est survenue lors de la création de la demande.'
+      }));
+    }
+    return;
+  }
+
+  // Recherche des prestataires après enregistrement
+  const providers = await ServiceModel.find({
+    online: true,
+    currentLocation: { $exists: true }
+  }).limit(20);
+
+  if (!providers.length) {
+    console.log(`⚠️ Aucun prestataire en ligne pour le service : ${serviceType}`);
+    if (clients.has(`user_${userId}`)) {
+      clients.get(`user_${userId}`).send(JSON.stringify({
+        type: 'no_providers_available',
+        requestId: savedRequest._id
+      }));
+    } else {
+      console.log(`⚠️ Client WebSocket non connecté : user_${userId}`);
+    }
+    return;
+  }
+
+  // Tri des prestataires par distance
+  const sorted = providers
+    .map(p => ({
+      p,
+      dist: geolib.getDistance(
+        { latitude: lat, longitude: lng },
+        { latitude: p.currentLocation.lat, longitude: p.currentLocation.lng }
+      )
+    }))
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 20);
+
+  // Envoi aux prestataires disponibles
   sorted.forEach(({ p }) => {
     const key = `provider_${p.userId}`;
     if (clients.has(key)) {
