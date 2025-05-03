@@ -279,20 +279,24 @@ const updateProviderModel = async (providerId, updateData) => {
           console.log("✅ Demande enregistrée:", savedRequest._id);
 
           // envoi à chacun des 20 prestataires triés
-          sorted.forEach(({ p }) => {
-            const key = `provider_${p.userId}`;
-            if (clients.has(key)) {
-              clients.get(key).send(JSON.stringify({
-                type: 'new_request',
-                requestId: savedRequest._id,
-                user: userDetails,
-                serviceType,
-                location: { lat, lng },
-                ...(serviceType === 'بائع قطع الغيار' ? { pieceName, carModel } : {}),
-                createdAt: savedRequest.createdAt
-              }));
-            }
-          });
+sorted.forEach(({ p }) => {
+  const key = `provider_${p.userId}`;
+  if (clients.has(key)) {
+    const requestPayload = {
+      type: 'new_request',
+      requestId: savedRequest._id,
+      user: userDetails,
+      serviceType,
+      location: { lat, lng },
+      ...(serviceType === 'بائع قطع الغيار' ? { pieceName, carModel } : {}),
+      createdAt: savedRequest.createdAt
+    };
+
+    console.log(`📤 Envoi à ${key} =>`, JSON.stringify(requestPayload, null, 2)); // Debug ici
+
+    clients.get(key).send(JSON.stringify(requestPayload));
+  }
+});
           return;
         }
 
