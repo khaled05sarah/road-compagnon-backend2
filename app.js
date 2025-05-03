@@ -116,6 +116,7 @@ wss.on('connection', (ws) => {
 
     ws.on('message', async (message) => {
       try {
+        console.log("📩 Message reçu:", message);
         const data = JSON.parse(message);
         const { providerId, userId, type } = data;
 
@@ -219,33 +220,56 @@ const updateProviderModel = async (providerId, updateData) => {
         // 4) Nouvelle demande
         // ═══════════════════
         if (type === 'new_request') {
+          console.log('=== DÉBUT TRAITEMENT new_request ===');
+          console.log('Données reçues:', JSON.stringify(data, null, 2));
+        
           const { serviceType, lat, lng } = data;
           // pour Vendor on attend aussi pieceName et carModel
           const { pieceName, carModel } = data;
-
-          if (!serviceType || !userId) return;
+        
+          if (!serviceType || !userId) {
+            console.log('❌ Paramètres manquants - serviceType ou userId absent');
+            return;
+          }
+        
+          console.log('ServiceType:', serviceType);
+          console.log('UserID:', userId);
+          console.log('Coordonnées:', { lat, lng });
+        
           const ServiceModel = getServiceModel(serviceType);
-          if (!ServiceModel) return;
-
+          if (!ServiceModel) {
+            console.log('❌ Model de service non trouvé pour:', serviceType);
+            return;
+          }
+        
           // détails utilisateur
+          console.log('🔍 Recherche utilisateur:', userId);
           const userDetails = await User.findById(userId).select('firstname lastname phone').lean();
-          if (!userDetails) return;
+          if (!userDetails) {
+            console.log('❌ Utilisateur non trouvé');
+            return;
+          }
           userDetails.name = `${userDetails.firstname} ${userDetails.lastname}`;
-
+          console.log('Utilisateur trouvé:', userDetails);
+        
           // récupère jusqu'à 20 prestataires en ligne
+          console.log('🔍 Recherche prestataires en ligne pour:', serviceType);
           const providers = await ServiceModel.find({
             online: true,
             currentLocation: { $exists: true }
           }).limit(20);
-
+        
+          console.log('Prestataires trouvés:', providers.length);
           if (!providers.length) {
+            console.log('ℹ️ Aucun prestataire disponible');
             if (clients.has(`user_${userId}`)) {
               clients.get(`user_${userId}`).send(JSON.stringify({ type: 'no_providers_available' }));
             }
             return;
           }
-
+        
           // calcule et trie par distance
+          console.log('📏 Calcul des distances...');
           const sorted = providers
             .map(p => ({
               p,
@@ -255,8 +279,10 @@ const updateProviderModel = async (providerId, updateData) => {
               )
             }))
             .sort((a, b) => a.dist - b.dist)
-            .slice(0, 20); // top 20
-
+            .slice(0, 20); // top 20
+        
+          console.log('Prestataires triés:', sorted.length);
+        
           // crée la demande sans assignedProvider
           const reqData = {
             userId,
@@ -267,75 +293,50 @@ const updateProviderModel = async (providerId, updateData) => {
             statusHistory: [{ status: "en attente", changedAt: new Date() }],
             createdAt: new Date()
           };
-
+        
           // champs supplémentaires pour Vendor
           if (serviceType === 'بائع قطع الغيار') {
             reqData.pieceName = pieceName;
             reqData.carModel = carModel;
+            console.log('🚗 Données Vendor:', { pieceName, carModel });
           }
-
-          const newRequest = new Request(reqData);
-          const savedRequest = await newRequest.save();
-          console.log("✅ Demande enregistrée:", savedRequest._id);
-
-          // envoi à chacun des 20 prestataires triés
-sorted.forEach(({ p }) => {
-  const key = `provider_${p.userId}`;
-  if (clients.has(key)) {
-    const requestPayload = {
-      type: 'new_request',
-      requestId: savedRequest._id,
-      user: userDetails,
-      serviceType,
-      location: { lat, lng },
-      ...(serviceType === 'بائع قطع الغيار' ? { pieceName, carModel } : {}),
-      createdAt: savedRequest.createdAt
-    };
-
-    console.log(`📤 Envoi à ${key} =>`, JSON.stringify(requestPayload, null, 2)); // Debug ici
-
-    clients.get(key).send(JSON.stringify(requestPayload));
-  }
-});
-          return;
-        }
-
-        // ═══════════════════
-        // 5) Acceptation (seul le premier)
-        // ═══════════════════
-        if (type === 'accept_request') {
-          const { requestId } = data;
-          // ne traite que la 1re acceptation
-          const updatedRequest = await Request.findOneAndUpdate(
-            { _id: requestId, status: "en attente", assignedProvider: null },
-            {
-              assignedProvider: providerId,
-              status: "acceptée",
-              acceptedAt: new Date(),
-              $push: { statusHistory: { status: "acceptée", changedAt: new Date() } }
-            },
-            { new: true }
-          );
-          if (!updatedRequest) return;
-
-          // prép. data
-          const providerDetails = await User.findById(providerId).select('firstname lastname phone').lean();
-          const ServiceModel = getServiceModel(updatedRequest.serviceType);
-          const providerDoc = await ServiceModel.findOne({ userId: providerId }).lean();
-
-          // notifie l'utilisateur
-          const userKey = `user_${updatedRequest.userId}`;
-          if (clients.has(userKey)) {
-            clients.get(userKey).send(JSON.stringify({
-              type: 'request_accepted',
-              requestId: updatedRequest._id,
-              provider: {
-                name: `${providerDetails.firstname} ${providerDetails.lastname}`,
-                phone: providerDetails.phone,
-                location: providerDoc.currentLocation
+        
+          console.log('📝 Données de la requête:', JSON.stringify(reqData, null, 2));
+        
+          try {
+            console.log('💾 Tentative d\'enregistrement de la demande...');
+            const newRequest = new Request(reqData);
+            const savedRequest = await newRequest.save();
+            console.log('✅ Demande enregistrée avec ID:', savedRequest._id);
+            console.log('Détails:', JSON.stringify(savedRequest, null, 2));
+        
+            // envoi à chacun des 20 prestataires triés
+            console.log('✉️ Envoi aux prestataires...');
+            sorted.forEach(({ p }) => {
+              const key = `provider_${p.userId}`;
+              if (clients.has(key)) {
+                const requestPayload = {
+                  type: 'new_request',
+                  requestId: savedRequest._id,
+                  user: userDetails,
+                  serviceType,
+                  location: { lat, lng },
+                  ...(serviceType === 'بائع قطع الغيار' ? { pieceName, carModel } : {}),
+                  createdAt: savedRequest.createdAt
+                };
+        
+                console.log(`📤 Envoi à ${key} =>`, JSON.stringify(requestPayload, null, 2));
+                clients.get(key).send(JSON.stringify(requestPayload));
+              } else {
+                console.log(`ℹ️ Prestataire ${key} non connecté`);
               }
-            }));
+            });
+          } catch (error) {
+            console.error('❌ Erreur lors de l\'enregistrement:', error);
+            console.error('Stack:', error.stack);
           }
+        
+          console.log('=== FIN TRAITEMENT new_request ===');
           return;
         }
 
