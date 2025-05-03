@@ -453,7 +453,7 @@ app.use((req, res, next) => {
 });
 
 // Connexion à MongoDB
-const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/monprojetdb';
+const mongoURI = process.env.MONGO_URL || 'mongodb://localhost:27017/monprojetdb';
 
 console.log("🌐 Tentative de connexion à MongoDB...");
 console.log("🔗 URI utilisée :", mongoURI);
