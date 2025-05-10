@@ -20,8 +20,8 @@ router.use(express.urlencoded({ extended: true }));
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USERr,
+        pass: process.env.EMAIL_PASSs,
     },
 });
 
@@ -99,7 +99,7 @@ router.post('/register', async(req, res) => {
 
         // Envoi du code de vérification par e-mail
         const mailOptions = {
-            from: `"Mon App" <${process.env.EMAIL_USER}>`,
+            from: `"Mon App" <${process.env.EMAIL_USERr}>`,
             to: email,
             subject: "Vérification de votre compte",
             html: `
@@ -181,7 +181,7 @@ router.post('/forgot-password', async(req, res) => {
         await user.save();
 
         const mailOptions = {
-            from: `"Mon App" <${process.env.EMAIL_USER}>`,
+            from: `"Mon App" <${process.env.EMAIL_USERr}>`,
             to: email,
             subject: "Réinitialisation du mot de passe",
             html: `<p>Votre code de réinitialisation est : <strong>${resetCode}</strong></p>`,

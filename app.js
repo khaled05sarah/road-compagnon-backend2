@@ -63,11 +63,11 @@ const Admin = require('./models/emp_type/Admin');
 
 const createAdminIfNotExists = async() => {
   try {
-      const existingAdmin = await Admin.findOne({ email: process.env.EMAIL_USER});
+      const existingAdmin = await Admin.findOne({ email: process.env.EMAIL_USERr});
 
       if (!existingAdmin) {
           const newAdmin = new Admin({
-              email: process.env.EMAIL_USER,
+              email: process.env.EMAIL_USERr,
               password: "SuperAdmin123"
           });
 
