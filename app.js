@@ -63,15 +63,31 @@ const Admin = require('./models/emp_type/Admin');
 
 const createAdminIfNotExists = async () => {
   try {
-      console.log("🔍 EMAIL_USERr =", process.env.EMAIL_USERr); // 🔧 Debug ici
+      console.log("🔍 Début de la création de l'admin...");
+      
+      // Debug 1: Vérification de la variable d'environnement
+      console.log("🔧 EMAIL_USERr (variable d'environnement) =", process.env.EMAIL_USERr);
+      console.log("🔧 Type de EMAIL_USERr =", typeof process.env.EMAIL_USERr);
+      
+      if (!process.env.EMAIL_USERr) {
+          throw new Error("La variable d'environnement EMAIL_USERr n'est pas définie");
+      }
 
+      // Debug 2: Vérification de la connexion à la base de données
+      console.log("🔍 Recherche de l'admin existant...");
       const existingAdmin = await Admin.findOne({ email: process.env.EMAIL_USERr });
+      console.log("🔧 Admin existant trouvé :", existingAdmin);
 
       if (!existingAdmin) {
+          console.log("🛠 Préparation de la création du nouvel admin...");
           const newAdmin = new Admin({
               email: process.env.EMAIL_USERr,
               password: "SuperAdmin123"
           });
+
+          // Debug 3: Vérification de l'objet avant sauvegarde
+          console.log("🔧 Nouvel admin à créer :", newAdmin);
+          console.log("🔧 Validation de l'objet :", newAdmin.validateSync());
 
           await newAdmin.save();
           console.log("✅ Admin créé avec succès !");
@@ -80,6 +96,10 @@ const createAdminIfNotExists = async () => {
       }
   } catch (error) {
       console.error("❌ Erreur lors de la création de l'admin :", error);
+      // Debug 4: Affichage détaillé de l'erreur
+      if (error.name === 'ValidationError') {
+          console.error("📌 Détails des erreurs de validation :", error.errors);
+      }
   }
 };
 
