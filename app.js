@@ -62,23 +62,23 @@ app.use('/api/score',atmpt);
 const Admin = require('./models/emp_type/Admin');
 
 const createAdminIfNotExists = async() => {
-    try {
-        const existingAdmin = await Admin.findOne({ email: "lematararbit@gmail.com" });
+  try {
+      const existingAdmin = await Admin.findOne({ email: process.env.EMAIL_USER });
 
-        if (!existingAdmin) {
-            const newAdmin = new Admin({
-                email: "lematararbit@gmail.com",
-                password: "SuperAdmin123"
-            });
+      if (!existingAdmin) {
+          const newAdmin = new Admin({
+              email: process.env.EMAIL_USER,
+              password: "SuperAdmin123"
+          });
 
-            await newAdmin.save();
-            console.log("✅ Admin créé avec succès !");
-        } else {
-            console.log("🔹 Admin déjà existant.");
-        }
-    } catch (error) {
-        console.error("❌ Erreur lors de la création de l'admin :", error);
-    }
+          await newAdmin.save();
+          console.log("✅ Admin créé avec succès !");
+      } else {
+          console.log("🔹 Admin déjà existant.");
+      }
+  } catch (error) {
+      console.error("❌ Erreur lors de la création de l'admin :", error);
+  }
 };
 
 // ✅ Exécuter la création de l'admin avant de démarrer le serveur

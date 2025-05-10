@@ -29,18 +29,18 @@ const transporter = nodemailer.createTransport({
 const generateVerificationCode = () => crypto.randomInt(100000, 999999).toString();
 
 // 🔹 Inscription d'un nouvel utilisateur avec confirmation de mot de passe et choix du sexe
-router.post('/register', async (req, res) => {
+router.post('/register', async(req, res) => {
     try {
         console.log("📩 Inscription - Données reçues :", req.body);
 
         let { firstname, lastname, email, phone, password, confirmPassword, sex } = req.body;
 
         // Nettoyage des entrées
-        firstname = firstname?.trim() || "Utilisateur";
-        lastname = lastname?.trim() || "Inconnu";
-        email = email?.trim();
-        phone = phone?.trim();
-        sex = sex?.trim().toLowerCase() || "ذكر"; // Valeur par défaut : masculin
+        firstname = (firstname && firstname.trim()) || "Utilisateur";
+        lastname = (lastname && lastname.trim()) || "Inconnu";
+        email = email ? email.trim() : "";
+        phone = phone ? phone.trim() : "";
+        sex = (sex && sex.trim().toLowerCase()) || "ذكر"; // Valeur par défaut : masculin
 
         // Vérification des champs requis
         if (!email || !phone || !password || !confirmPassword) {
@@ -62,20 +62,20 @@ router.post('/register', async (req, res) => {
 
         // Vérification du sexe (si renseigné)
         const allowedSexValues = ["أنثى", "ذكر"];
-        if (!allowedSexValues.includes(sex)) {
-            return res.status(400).json({ message: "Le sexe doit être 'feminin' ou 'masculin'." });
+        if (sex && !allowedSexValues.includes(sex)) {
+            return res.status(400).json({ message: "Le sexe doit être 'masculin' ou 'féminin'." });
         }
 
         // Vérifier si l'email est déjà utilisé
         const existingUserByEmail = await User.findOne({ email });
         if (existingUserByEmail) {
-            return res.status(400).json({ message: "L'email est déjà utilisé." });
+            return res.status(400).json({ message: "email" });
         }
 
         // Vérifier si le numéro de téléphone est déjà utilisé
         const existingUserByPhone = await User.findOne({ phone });
         if (existingUserByPhone) {
-            return res.status(400).json({ message: "Le numéro de téléphone est déjà utilisé." });
+            return res.status(400).json({ message: "phone" });
         }
 
         // Hash du mot de passe
@@ -102,8 +102,15 @@ router.post('/register', async (req, res) => {
             from: `"Mon App" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: "Vérification de votre compte",
-            html: `<p>Votre code de vérification est : <strong>${verificationCode}</strong></p>`,
+            html: `
+        <p>Bienvenue dans notre application !</p>
+        <p>Pour finaliser votre inscription, veuillez entrer le code de vérification ci-dessous :</p>
+        <h2>${verificationCode}</h2>
+        <p>Merci de votre confiance.</p>
+    `,
+
         };
+
 
         try {
             await transporter.sendMail(mailOptions);
@@ -119,61 +126,6 @@ router.post('/register', async (req, res) => {
         res.status(500).json({ message: "Erreur serveur." });
     }
 });
-router.post('/formulaire1', async(req, res) => {
-    try {
-        console.log("📩 Mise à jour du formulaire1 - Données reçues :", req.body);
-
-        let { email, firstname, lastname, sex, role } = req.body;
-
-        // Vérifier si l'email est fourni
-        if (!email) {
-            return res.status(400).json({ message: "L'email est obligatoire pour identifier l'utilisateur." });
-        }
-
-        // Trouver l'utilisateur dans la base de données
-        const user = await User.findOne({ email });
-
-        if (!user) {
-            return res.status(404).json({ message: "Utilisateur non trouvé." });
-        }
-
-        // ...existing code...
-        // Nettoyage des données et valeurs par défaut
-        firstname = firstname ? firstname.trim() : user.firstname;
-        lastname = lastname ? lastname.trim() : user.lastname;
-        sex = sex ? sex.trim().toLowerCase() : user.sex;
-        role = role || user.role;
-        // ...existing code...
-
-        // Vérification du sexe (optionnel)
-        const allowedSexValues = ["أنثى", "ذكر"];
-        if (sex && !allowedSexValues.includes(sex)) {
-            return res.status(400).json({ message: "Le sexe doit être 'feminin' ou 'masculin'." });
-        }
-
-        // Mise à jour des données
-        user.firstname = firstname;
-        user.lastname = lastname;
-        user.sex = sex;
-        user.role = role;
-
-        await user.save();
-        if (role === "user") {
-            const token = jwt.sign({ id: newUser._id, role: newUser.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
-            return res.status(201).json({
-                message: "Utilisateur créé et connecté avec succès !",
-                token,
-                user: { firstname, lastname, email, role }
-            });
-        }
-        res.json({ message: "Informations mises à jour avec succès !" });
-
-    } catch (error) {
-        console.error("❌ Erreur lors de la mise à jour du formulaire1 :", error);
-        res.status(500).json({ message: "Erreur serveur." });
-    }
-});
-
 
 
 // 🔹 Vérification du code reçu par e-mail
@@ -297,7 +249,7 @@ router.post('/reset-password', async(req, res) => {
 });
 
 
-router.post('/login', async (req, res) => {
+router.post('/login', async(req, res) => {
     try {
         console.log("📩 Connexion - Données reçues :", req.body);
 
@@ -324,7 +276,10 @@ router.post('/login', async (req, res) => {
 
             // Refuser la connexion si le compte utilisateur n'est pas vérifié
             if (!user.verified) {
-                return res.status(400).json({ message: "Compte non vérifié. Veuillez vérifier votre email." });
+                return res.status(400).json({ 
+                    message: "البريد الإلكتروني غير مفعل. هل تريد إعادة إرساله ؟", 
+                    field: "unverified" 
+                  });
             }
 
             // Préparer les données communes du token
@@ -343,18 +298,21 @@ router.post('/login', async (req, res) => {
                 if (mechanic) {
                     tokenPayload.businessAddress = mechanic.businessAddress;
                     tokenPayload.phonePro = mechanic.phonePro;
+                    tokenPayload.profilePhoto = mechanic.profilePhoto;
                 }
             } else if (role === "بائع قطع الغيار") {
                 const vendor = await Vendor.findOne({ userId: user._id });
                 if (vendor) {
                     tokenPayload.businessAddress = vendor.businessAddress;
                     tokenPayload.phonePro = vendor.phonePro;
+                    tokenPayload.profilePhoto = vendor.profilePhoto;
                 }
             } else if (role === "عامل سحب السيارات") {
                 const towing = await Towing.findOne({ userId: user._id });
                 if (towing) {
                     tokenPayload.businessAddress = towing.businessAddress;
                     tokenPayload.phonePro = towing.phonePro;
+                    tokenPayload.profilePhoto = towing.profilePhoto;
                 }
             }
 
@@ -671,6 +629,7 @@ router.patch('/update-profile', async(req, res) => {
         res.status(500).json({ message: "Erreur serveur." });
     }
 });
+
 
 // 🔹 Supprimer compte après saisie du mot de passe 2 fois
 router.delete('/delete-account', async(req, res) => {

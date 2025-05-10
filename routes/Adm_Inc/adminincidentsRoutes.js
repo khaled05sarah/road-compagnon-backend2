@@ -45,26 +45,7 @@ router.get('/', async (req, res) => {
         });
     }
 });
-router.get('/', async(req, res) => {
-    try {
-        const incidents = await Incident.find().sort({ createdAt: -1 }).populate('userId', 'email');
-        res.json({
-            success: true,
-            statusCode: 200,
-            message: "Incidents récupérés avec succès.",
-            incidents
-        });
 
-    } catch (error) {
-        console.error("❌ Erreur lors de la récupération des incidents :", error);
-        res.json({
-            success: false,
-            statusCode: 400,
-            message: "Une erreur est survenue lors de la récupération des incidents.",
-            error: error.message
-        });
-    }
-});
 
 // 📌 ➤ Récupérer un incident par ID
 router.get('/:id', async(req, res) => {
