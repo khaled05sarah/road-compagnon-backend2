@@ -67,22 +67,22 @@ const createAdminIfNotExists = async () => {
       console.log("🔍 Début de la création de l'admin...");
       
       // Debug 1: Vérification de la variable d'environnement
-      console.log("🔧 EMAIL_USERr (variable d'environnement) =", process.env.EMAIL_USERr);
-      console.log("🔧 Type de EMAIL_USERr =", typeof process.env.EMAIL_USERr);
+      console.log("🔧 EMAIL_USERr (variable d'environnement) =", process.env.EMAIL_USER);
+      console.log("🔧 Type de EMAIL_USERr =", typeof process.env.EMAIL_USER);
       
-      if (!process.env.EMAIL_USERr) {
+      if (!process.env.EMAIL_USER) {
           throw new Error("La variable d'environnement EMAIL_USERr n'est pas définie");
       }
 
       // Debug 2: Vérification de la connexion à la base de données
       console.log("🔍 Recherche de l'admin existant...");
-      const existingAdmin = await Admin.findOne({ email: process.env.EMAIL_USERr });
+      const existingAdmin = await Admin.findOne({ email: process.env.EMAIL_USER });
       console.log("🔧 Admin existant trouvé :", existingAdmin);
 
       if (!existingAdmin) {
           console.log("🛠 Préparation de la création du nouvel admin...");
           const newAdmin = new Admin({
-              email: process.env.EMAIL_USERr,
+              email: process.env.EMAIL_USER,
               password: "SuperAdmin123"
           });
 
