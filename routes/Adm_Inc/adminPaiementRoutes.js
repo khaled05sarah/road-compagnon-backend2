@@ -13,8 +13,8 @@ const Notification = require('../../models/Notification');
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USERr,
-        pass: process.env.EMAIL_PASSs
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
@@ -98,7 +98,7 @@ router.get('/verifier-paiements', async(req, res) => {
                     await sendNotification(user._id, message);
 
                     await transporter.sendMail({
-                        from: process.env.EMAIL_USERr,
+                        from: process.env.USERr,
                         to: user.email,
                         subject: 'Rappel de paiement',
                         html: `
@@ -115,7 +115,7 @@ router.get('/verifier-paiements', async(req, res) => {
 
                     // ❌ PAS de notification enregistrée ici, juste un email
                     await transporter.sendMail({
-                        from: process.env.EMAIL_USERr,
+                        from: process.env.EMAIL_USER,
                         to: user.email,
                         subject: 'Désactivation de votre compte',
                         html: `
@@ -132,8 +132,8 @@ router.get('/verifier-paiements', async(req, res) => {
                 // ✅ Rapport à l'admin
                 if (comptesASupprimer.length > 0) {
                     await transporter.sendMail({
-                                from: process.env.EMAIL_USERr,
-                                to: process.env.EMAIL_USERr, // ou process.env.ADMIN_EMAIL si défini
+                                from: process.env.EMAIL_USER,
+                                to: process.env.EMAIL_USER, // ou process.env.ADMIN_EMAIL si défini
                                 subject: `[${new Date().toLocaleDateString()}] Suppression de comptes`,
                                 html: `
                     <h2>Rapport de suppression</h2>
