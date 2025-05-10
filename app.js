@@ -58,7 +58,8 @@ app.use('/api/admin', PaiementAdminRoutes);
 app.use('/api/paiement', paiementUserRoutes);
 app.use('/api/score',atmpt);
 //admin
-
+console.log("=== Variables d'environnement ===");
+console.log(process.env); // Affiche TOUTES les variables
 const Admin = require('./models/emp_type/Admin');
 
 const createAdminIfNotExists = async () => {
